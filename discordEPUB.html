@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Discord → EPUB</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root{
+      --bg:#000;
+      --panel:#0a0a0a;
+      --muted:#666;
+      --text:#fff;
+      --accent:#fff;
+      --line:#222;
+      --border:#333;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100vh;
+    }
+    header{
+      padding:24px 20px;
+      border-bottom:1px solid var(--line);
+      position:sticky;
+      top:0;
+      background:var(--bg);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      z-index:100;
+    }
+    h1{
+      font-weight:600;
+      font-size:20px;
+      margin:0;
+      color:var(--text);
+      letter-spacing:-0.3px;
+    }
+    main{max-width:1100px;margin:0 auto;padding:20px;display:grid;grid-template-columns:360px 1fr;gap:18px}
+    @media(max-width:768px){
+      main{grid-template-columns:1fr;padding:16px}
+      .card{padding:16px}
+      header{padding:16px}
+    }
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:20px;
+    }
+    .card h2{margin:0;font-size:13px;color:var(--text);font-weight:500;letter-spacing:0}
+    label{display:block;font-size:13px;color:var(--muted);margin:0;font-weight:400;letter-spacing:0}
+    input[type="text"], input[type="number"], select{
+      width:100%;
+      padding:10px 12px;
+      border-radius:6px;
+      border:1px solid var(--border);
+      background:var(--bg);
+      color:var(--text);
+      transition:border-color 0.15s ease;
+      font-size:14px;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, select:focus{
+      outline:none;
+      border-color:var(--text);
+    }
+    input[type="file"]{width:100%}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:var(--bg);
+      color:var(--text);
+      padding:10px 16px;
+      border-radius:6px;
+      cursor:pointer;
+      font-weight:400;
+      transition:all 0.15s ease;
+      font-size:14px;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    }
+    .btn:hover{
+      background:var(--panel);
+      border-color:var(--text);
+    }
+    .btn.primary{
+      background:var(--text);
+      border:1px solid var(--text);
+      color:var(--bg);
+    }
+    .btn.primary:hover{
+      background:var(--muted);
+      border-color:var(--muted);
+    }
+    .btn:disabled{opacity:.3;cursor:not-allowed}
+    .btn:disabled:hover{background:var(--bg);border-color:var(--border)}
+    .muted{color:var(--muted)}
+    .pill{display:inline-block;padding:4px 8px;border:1px solid var(--line);border-radius:999px;margin:4px;font-size:12px}
+    .toggle-group{
+      display:flex;
+      border:1px solid var(--border);
+      border-radius:6px;
+      overflow:hidden;
+      background:var(--panel);
+      width:auto;
+    }
+    .toggle-btn{
+      appearance:none;
+      border:none;
+      background:var(--panel);
+      color:var(--muted);
+      padding:6px 8px;
+      cursor:pointer;
+      font-weight:400;
+      transition:all 0.15s ease;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+      min-width:36px;
+      height:32px;
+    }
+    .toggle-btn:hover{
+      background:var(--bg);
+      color:var(--text);
+    }
+    .toggle-btn.active{
+      background:var(--text);
+      color:var(--bg);
+    }
+    .toggle-btn.active:hover{
+      background:var(--muted);
+    }
+    .file-item{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:8px;
+      border-radius:4px;
+      background:var(--panel);
+      margin-bottom:4px;
+      font-size:13px;
+    }
+    .file-item:last-child{margin-bottom:0}
+    .file-item .remove-btn{
+      background:none;
+      border:none;
+      color:var(--muted);
+      font-size:16px;
+      cursor:pointer;
+      padding:2px 4px;
+      border-radius:2px;
+      opacity:0;
+      transition:opacity 0.15s ease;
+    }
+    .file-item:hover .remove-btn{opacity:1}
+    .file-item .remove-btn:hover{background:rgba(255,0,0,0.1);color:#ff4444}
+    .preview{
+      max-height:60vh;
+      overflow:auto;
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:12px;
+    }
+    .message{padding:12px 15px;border-bottom:1px solid var(--line)}
+    .message .username{font-size:14px;font-weight:500;color:var(--text)}
+    .message .content{white-space:pre-wrap;margin-top:6px;font-size:14px;line-height:1.5;color:var(--muted)}
+    .footer{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    details{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+    #dropZone{
+      border:2px dashed var(--border);
+      border-radius:6px;
+      padding:40px 20px;
+      text-align:center;
+      cursor:pointer;
+      transition:border-color 0.15s ease;
+    }
+    #dropZone:hover{
+      border-color:var(--text);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <i data-lucide="book-open" style="width:28px;height:28px;color:var(--accent);"></i>
+      <h1>Discord → EPUB</h1>
+    </div>
+  </header>
+  <main>
+    <section class="card" id="loader">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+        <i data-lucide="upload" style="width:18px;height:18px;color:var(--accent);"></i>
+        <h2>Files</h2>
+        <div id="chatTypeToggle" style="margin-left:auto;">
+          <div class="toggle-group">
+            <button id="soloBtn" class="toggle-btn active" title="Single Chat">
+              <i data-lucide="user-round" style="width:16px;height:16px;"></i>
+            </button>
+            <button id="duoBtn" class="toggle-btn" title="Multiple Chats">
+              <i data-lucide="users-round" style="width:16px;height:16px;"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="dropZone">
+        <i data-lucide="file-archive" style="width:48px;height:48px;color:var(--muted);margin-bottom:12px;"></i>
+        <div class="dz-title" style="font-size: 16px; margin-bottom: 6px; color: var(--text);font-weight:500;">Drop your Discord export</div>
+        <div class="dz-sub" style="font-size: 13px; color: var(--muted);">ZIP file with chat + media</div>
+        <input id="exportFile" type="file" accept=".zip" multiple style="display: none;" />
+      </div>
+      <div id="multiFileContainer" style="display:none;margin-top:12px;">
+        <div id="fileList" style="max-height:150px;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;"></div>
+      </div>
+    </section>
+
+    <section class="card" id="options">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+        <i data-lucide="settings" style="width:18px;height:18px;color:var(--accent);"></i>
+        <h2>Options</h2>
+      </div>
+      
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <i data-lucide="book-text" style="width:14px;height:14px;color:var(--muted);"></i>
+        <label>Book Title</label>
+      </div>
+      <input id="bookTitle" type="text" placeholder="e.g., The Feywild Chronicles" style="margin-bottom:20px;" />
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <i data-lucide="users" style="width:14px;height:14px;color:var(--muted);"></i>
+        <label>Author Management</label>
+      </div>
+      <div id="authorList" class="preview" style="max-height: 200px; margin-bottom:20px;">
+        <div class="muted">Authors will appear here after parsing...</div>
+      </div>
+
+      <div class="footer">
+        <button id="parseBtn" class="btn">
+          <i data-lucide="sparkles" style="width:16px;height:16px;"></i>
+          Parse Export
+        </button>
+        <button id="epubBtn" class="btn primary" disabled>
+          <i data-lucide="download" style="width:16px;height:16px;"></i>
+          Save EPUB
+        </button>
+      </div>
+      <p id="status" class="muted" style="margin-top:12px;display:flex;align-items:center;gap:6px;font-size:13px;"></p>
+    </section>
+
+    <section class="card" style="grid-column:1 / -1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+        <i data-lucide="eye" style="width:18px;height:18px;color:var(--accent);"></i>
+        <h2>Preview</h2>
+      </div>
+      <div id="preview" class="preview">
+        <div style="display:flex;align-items:center;gap:8px;color:var(--muted);">
+          <i data-lucide="inbox" style="width:20px;height:20px;"></i>
+          <span>No messages yet.</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+  <script>
+  // --- Helpers ---
+  const qs = (sel, el=document) => el.querySelector(sel);
+  const qsa = (sel, el=document) => [...el.querySelectorAll(sel)];
+  const by = (k) => (a,b)=> (a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0);
+
+  const readFileText = (file) => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result)); r.onerror=rej; r.readAsText(file); });
+  const readFileDataURL = (file) => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result)); r.onerror=rej; r.readAsDataURL(file); });
+  const readFileArrayBuffer = (file) => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(file); });
+  const blobToDataURL = (blob) => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result)); r.onerror=rej; r.readAsDataURL(blob); });
+
+  // --- Drag and Drop ---
+  const setupDragAndDrop = () => {
+    const dropZone = qs('#dropZone');
+    const fileInput = qs('#exportFile');
+
+    // Click to select file
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // Drag and drop handlers
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = '#8cdcff';
+      dropZone.style.backgroundColor = 'rgba(140, 220, 255, 0.1)';
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = '#2a3340';
+      dropZone.style.backgroundColor = 'transparent';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = '#2a3340';
+      dropZone.style.backgroundColor = 'transparent';
+      
+      const files = Array.from(e.dataTransfer.files);
+      const validFiles = files.filter(file => file.name.toLowerCase().endsWith('.zip'));
+      
+      if (validFiles.length > 0) {
+        // Update file input and trigger change
+        const dataTransfer = new DataTransfer();
+        validFiles.forEach(file => dataTransfer.items.add(file));
+        fileInput.files = dataTransfer.files;
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Update drop zone text doesn't need to be done here since change handler does it
+      }
+    });
+
+    // File input change handler
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        const files = Array.from(e.target.files);
+        
+        // Validate all files are ZIP files
+        for (const file of files) {
+          if(!file.name.toLowerCase().endsWith('.zip')){
+            alert('Please choose ZIP files that contain the chat and media.');
+            fileInput.value = '';
+            return;
+          }
+        }
+        
+        if (state.chatType === 'solo') {
+          // Solo mode: handle single file
+          const file = files[0];
+          const titleEl = dropZone.querySelector('.dz-title');
+          const subEl = dropZone.querySelector('.dz-sub');
+          if (titleEl) titleEl.textContent = `✅ ${file.name}`;
+          if (subEl) subEl.textContent = 'Click to change file';
+          state.selectedFiles = [file];
+        } else {
+          // Duo mode: handle multiple files
+          const existingFiles = new Set(state.selectedFiles.map(f => f.name));
+          const newFiles = files.filter(f => !existingFiles.has(f.name));
+          
+          state.selectedFiles.push(...newFiles);
+          updateFileList();
+          updateFileInput();
+          
+          const titleEl = dropZone.querySelector('.dz-title');
+          const subEl = dropZone.querySelector('.dz-sub');
+          if (titleEl) titleEl.textContent = `✅ ${newFiles.length} file(s) added`;
+          if (subEl) subEl.textContent = 'Click to add more files';
+        }
+      }
+    });
+  };
+
+  // Extract and process ZIP file
+  async function processZipFile(file) {
+    console.log('Processing ZIP file:', file.name);
+    const arrayBuffer = await readFileArrayBuffer(file);
+    const zip = new JSZip();
+    const zipContents = await zip.loadAsync(arrayBuffer);
+    
+    // Find JSON/HTML files
+    let chatFile = null;
+    let mediaFiles = new Map();
+    
+    for(const [path, entry] of Object.entries(zipContents.files)) {
+      if(entry.dir) continue; // Skip directories
+      
+      const fileName = path.split('/').pop().toLowerCase();
+      
+      // Look for chat export files
+      if(fileName.match(/\.(json|html|htm)$/)) {
+        if(!chatFile || fileName.includes('channel') || fileName.includes('server')) {
+          chatFile = { path, entry };
+        }
+      }
+      
+      // Look for media files (images, videos, audio) - skip avatars folder
+      if(fileName.match(/\.(png|jpg|jpeg|gif|webp|mp4|avi|mov|mp3|wav|ogg)$/i)) {
+        // Skip files in avatars folder
+        if(path.toLowerCase().includes('/avatars/')) {
+          console.log(`Skipping avatar: ${path}`);
+          continue;
+        }
+        
+        // Only include files from _media folders
+        if(path.toLowerCase().includes('_media/')) {
+          const fileContent = await entry.async('blob');
+          mediaFiles.set(fileName, fileContent);
+          console.log(`Adding media file: ${fileName} from ${path}`);
+        }
+      }
+    }
+    
+    if(!chatFile) {
+      throw new Error('No JSON or HTML chat file found in ZIP');
+    }
+    
+    // Read the chat file content
+    console.log(`Found chat file: ${chatFile.path}`);
+    const chatContent = await chatFile.entry.async('text');
+    const chatFileObj = new File([chatContent], chatFile.path.split('/').pop(), {
+      type: chatFile.path.endsWith('.json') ? 'application/json' : 'text/html'
+    });
+    
+    console.log(`Found ${mediaFiles.size} media files in ZIP`);
+    return { chatFile: chatFileObj, mediaMap: mediaFiles };
+  }
+
+  function fmtDate(d){return new Date(d).toISOString().replace('T',' ').slice(0,19)}
+
+
+  // Detect separator messages (GM lines with lots of dashes or similar separators)
+  function isSeparatorMessage(message) {
+    if (!message || (!message.content && !message.html)) return false;
+    
+    // Check both plain content and HTML content
+    const content = (message.content || '').trim();
+    const htmlContent = message.html ? message.html.replace(/<[^>]*>/g, '').trim() : '';
+    
+    // Look for patterns like --------------------------------------------------------------
+    const separatorPattern = /^[-=_#*+\s]{20,}$/;
+    
+    return separatorPattern.test(content) || separatorPattern.test(htmlContent);
+  }
+
+  // --- Parsing Discord exports ---
+  /**
+   * Unified message shape returned by parse:
+   * { id, author, avatarUrl?, timestamp, content (raw text), html? (preferred), attachments:[{filename,url}], embeds:[{title, description, url}] }
+   */
+  async function parseDiscordExport(file){
+    const text = await readFileText(file);
+    const ext = file.name.toLowerCase().split('.').pop();
+
+    if(ext === 'json'){
+      const obj = JSON.parse(text);
+      // DiscordChatExporter JSON: obj.messages[]
+      if(Array.isArray(obj.messages)){
+        return obj.messages.map((m,i)=>({
+          id: m.id || i,
+          author: m.author?.global_name || m.author?.name || m.author || 'Unknown',
+          originalUsername: m.author?.username,
+          avatarUrl: m.author?.avatarUrl || m.author?.avatar || null,
+          timestamp: m.timestamp || m.date || m.Timestamp || m.time || null,
+          content: m.content || m.Content || '',
+          html: m.contentHtml || null,
+          attachments: (m.attachments||[]).map(a=>({id:a.id, filename:a.filename||a.fileName||a.name||'file', url:a.url||a.Url||a.proxyUrl||a.src})),
+          embeds: (m.embeds||[]).map(e=>({
+            title: e.title,
+            description: e.description,
+            url: e.url,
+            type: e.type,
+            provider: e.provider
+          }))
+        }));
+      }
+      // Generic JSON (from some extensions): top-level array
+      if(Array.isArray(obj)){
+        return obj.map((m,i)=>({
+          id: m.id || i,
+          author: m.author?.global_name || m.author?.name || m.username || m.userName || m.user || 'Unknown',
+          originalUsername: m.author?.username || m.username || m.userName,
+          avatarUrl: m.author?.avatar || m.avatar,
+          timestamp: m.timestamp || m.time || m.date,
+          content: m.content || m.text || '',
+          html: m.html || null,
+          attachments: (m.attachments||m.files||[]).map(a=>({id:a.id, filename:a.filename||a.fileName||a.name||'file', url:a.url||a.src})),
+          embeds: (m.embeds||[]).map(e=>({
+            title: e.title,
+            description: e.description,
+            url: e.url,
+            type: e.type,
+            provider: e.provider
+          }))
+        }));
+      }
+      throw new Error('Unrecognized JSON structure. Expecting { messages: [...] } or an array.');
+    }
+
+    // HTML export
+    if(ext === 'html' || ext === 'htm'){
+      const doc = new DOMParser().parseFromString(text, 'text/html');
+      // DiscordChatExporter HTML uses .chatlog__message-group / .chatlog__message
+      let nodes = qsa('.chatlog__message, .message, .chatlog-message', doc);
+      if(nodes.length === 0){
+        // fallback: dce legacy
+        nodes = qsa('[data-message-id]', doc);
+      }
+      const msgs = nodes.map((el,i)=>{
+        const author = (el.querySelector('.chatlog__author')?.textContent
+                     || el.querySelector('.author')?.textContent
+                     || el.querySelector('.username')?.textContent
+                     || 'Unknown').trim();
+        const ts = (el.querySelector('.chatlog__timestamp')?.getAttribute('datetime')
+                 || el.querySelector('time')?.getAttribute('datetime')
+                 || el.querySelector('.timestamp')?.textContent
+                 || el.getAttribute('data-timestamp')
+                 || '')
+                 .trim();
+        const contentNode = el.querySelector('.chatlog__content, .content, .markup, .message-content');
+        const html = contentNode ? contentNode.innerHTML : el.innerHTML;
+        const attachments = qsa('a[href], .chatlog__attachment a', el)
+          .map(a=>({filename:(a.getAttribute('download')||a.textContent||'file').trim(), url:a.href}));
+        return {id: el.getAttribute('data-message-id')||i, author, timestamp: ts, content: contentNode?contentNode.textContent:'', html, attachments, embeds:[]};
+      });
+      return msgs;
+    }
+
+    throw new Error('Unsupported file type: ' + ext);
+  }
+
+  // Grouping helpers
+  function grouper(mode){
+    return (msg)=>{
+      const d = new Date(msg.timestamp || Date.now());
+      const y=d.getUTCFullYear(), m=d.getUTCMonth()+1, day=d.getUTCDate();
+      const week = (d)=>{ const dt = new Date(Date.UTC(y, d.getUTCMonth(), d.getUTCDate())); const onejan = new Date(Date.UTC(y,0,1)); const diff = Math.floor((dt - onejan)/86400000); return 1 + Math.floor((diff - dt.getUTCDay() + 10)/7); };
+      if(mode==='day') return `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      if(mode==='week') return `${y}-W${String(week(d)).padStart(2,'0')}`;
+      if(mode==='month') return `${y}-${String(m).padStart(2,'0')}`;
+      if(mode==='separators') return 'separator-grouped';
+      return 'all';
+    }
+  }
+
+  // Render preview list
+  function renderPreview(List){
+    const root = qs('#preview');
+    if(List.length===0){ root.textContent = 'No messages matched your filters.'; return; }
+    root.innerHTML = '';
+    for(const m of List.slice(0,400)){
+      const div = document.createElement('div');
+      div.className='message';
+      
+      // Get content (Spotify links already replaced during parsing)
+      let content = m.html || m.content;
+      
+      // Process attachments for images
+      let atthtml = '';
+      if(m.attachments?.length){
+        const items = m.attachments.map(a=> a.embedDataURL ?
+          `<figure><img src="${escapeHtml(a.embedDataURL)}" alt="${escapeHtml(a.filename)}" style="max-width: 200px; height: auto; border-radius: 4px;"/></figure>` :
+          `<div class="muted">📎 Attachment: <span class="pill">${escapeHtml(a.filename||'file')}</span></div>`
+        ).join('');
+        atthtml = items;
+      }
+      
+      // Use mapped author name if available
+      const authorName = state.authorMappings.get(m.author) || m.author;
+      div.innerHTML = `<div class="username">${escapeHtml(authorName)}</div>` +
+                      `<div class="content">${content}</div>` + atthtml;
+      root.appendChild(div);
+    }
+    if(List.length>400){
+      const note = document.createElement('div');
+      note.className='muted';
+      note.style.marginTop='6px';
+      note.textContent = `Showing first 400 of ${List.length} messages in preview.`;
+      root.appendChild(note);
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s||'')
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  }
+
+  function escapeXml(s){
+    return String(s||'')
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&apos;');
+  }
+
+  // Map media filenames -> File objects from chosen folder
+  function indexMedia(files){
+    const map = new Map();
+    for (const f of files){
+      const key = f.name.toLowerCase();
+      if(!map.has(key)) map.set(key, f);
+    }
+    return map;
+  }
+
+  // Build EPUB (minimal v3)
+  async function buildEpub({title, chapters, coverImageDataURL=null}){
+    console.log('buildEpub called with:', {title, chapters: chapters?.length, coverImageDataURL});
+    
+    // Validate dependencies
+    if (typeof JSZip === 'undefined') {
+      throw new Error('JSZip library not loaded');
+    }
+    if (typeof saveAs === 'undefined') {
+      throw new Error('file-saver library not loaded');
+    }
+    
+    const zip = new JSZip();
+
+    // 0) mimetype (must be stored and first)
+    zip.file('mimetype','application/epub+zip',{compression:'STORE'});
+
+    // 1) META-INF/container.xml
+    zip.file('META-INF/container.xml', `<?xml version="1.0"?>\n<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">\n  <rootfiles>\n    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>\n  </rootfiles>\n</container>`);
+
+    // 2) OEBPS assets
+    const css = `body{font-family: -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif;line-height:1.5;color:#111;margin:0;padding:0 0 24px}h1,h2,h3{font-weight:700}section{padding:12px 16px}article{padding:15px 0 20px;border-bottom:1px solid #eee}article:last-child{border-bottom:none}.username{font-size:18px;font-weight:600;color:#2d5aa0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}.content{margin-top:8px;font-size:14px;line-height:1.6}figure{margin:8px 0}img{max-width:100%;height:auto}`;
+    zip.file('OEBPS/stylesheet.css', css);
+
+    // Optional cover
+    let coverItem = '';
+    if(coverImageDataURL){
+      const { blob, ext, mediaType } = dataUrlToBlob(coverImageDataURL);
+      zip.file(`OEBPS/cover.${ext}`, blob);
+      coverItem = `<item id="cover" href="cover.${ext}" media-type="${mediaType}" properties="cover-image"/>`;
+    }
+
+  // 3) Chapters xhtml
+  const manifestItems = [];
+    const spineItems = [];
+    const navPoints = [];
+
+    const navXhtml = [`<?xml version="1.0" encoding="utf-8"?>`,
+      `<html xmlns="http://www.w3.org/1999/xhtml">`,
+      `<head><title>Table of Contents</title><link rel="stylesheet" href="stylesheet.css"/></head>`,
+      `<body><nav epub:type="toc"><h1>Contents</h1><ol>`];
+
+  // Collect and materialize embedded data URLs as real files in OEBPS/images
+  const dataUrlToPath = new Map();
+  let assetCounter = 1;
+
+  chapters.forEach((ch, idx)=>{
+      const id = `ch${String(idx+1).padStart(3,'0')}`;
+      const file = `OEBPS/chapters/${id}.xhtml`;
+    let chapterHtml = ch.html || '';
+    // Find any <img src="data:..."> and convert to packaged files
+    const imgSrcRegex = /<img([^>]*?)src=\"(data:[^\"]+)\"([^>]*)\/>/gi;
+    chapterHtml = chapterHtml.replace(imgSrcRegex, (match, pre, dataUrl, post)=>{
+      if(!dataUrlToPath.has(dataUrl)){
+        const { blob, ext, mediaType } = dataUrlToBlob(dataUrl);
+        const imgName = `images/img${String(assetCounter++).padStart(4,'0')}.${ext}`;
+        dataUrlToPath.set(dataUrl, imgName);
+        zip.file(`OEBPS/${imgName}`, blob);
+        manifestItems.push(`<item id="${imgName.replace(/\W/g,'_')}" href="${imgName}" media-type="${mediaType}"/>`);
+      }
+      const rel = `../${dataUrlToPath.get(dataUrl)}`;
+      return `<img${pre}src="${rel}"${post}/>`;
+    });
+
+    const xhtml = `<?xml version="1.0" encoding="utf-8"?>\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\n<head><title>${escapeXml(ch.title)}</title><link rel=\"stylesheet\" href=\"../stylesheet.css\"/></head>\n<body>\n<section>\n  <h2>${escapeXml(ch.title)}</h2>\n  ${chapterHtml}\n</section>\n</body></html>`;
+    zip.file(file, xhtml);
+      manifestItems.push(`<item id="${id}" href="chapters/${id}.xhtml" media-type="application/xhtml+xml"/>`);
+      spineItems.push(`<itemref idref="${id}"/>`);
+      navPoints.push({id, label: ch.title, href: `chapters/${id}.xhtml`});
+      navXhtml.push(`<li><a href="chapters/${id}.xhtml">${escapeXml(ch.title)}</a></li>`);
+    });
+
+    navXhtml.push(`</ol></nav></body></html>`);
+    zip.file('OEBPS/nav.xhtml', navXhtml.join('\n'));
+    manifestItems.push(`<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>`);
+
+    // 4) content.opf
+    const uuid = 'urn:uuid:' + crypto.randomUUID();
+    const opf = `<?xml version="1.0" encoding="utf-8"?>\n<package xmlns=\"http://www.idpf.org/2007/opf\" unique-identifier=\"bookid\" version=\"3.0\">\n  <metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n    <dc:identifier id=\"bookid\">${uuid}</dc:identifier>\n    <dc:title>${escapeXml(title||'Discord Log')}</dc:title>\n    <dc:language>en</dc:language>\n    <meta property=\"dcterms:modified\">${new Date().toISOString().replace(/\..+/,"Z")}</meta>\n  </metadata>\n  <manifest>\n    <item id=\"css\" href=\"stylesheet.css\" media-type=\"text/css\"/>\n    ${coverItem}\n    ${manifestItems.join('\n    ')}\n  </manifest>\n  <spine>\n    ${spineItems.join('\n    ')}\n  </spine>\n</package>`;
+    zip.file('OEBPS/content.opf', opf);
+
+    console.log('Generating ZIP blob...');
+    const blob = await zip.generateAsync({type:'blob', mimeType:'application/epub+zip'});
+    console.log('Blob generated:', blob.size, 'bytes');
+    
+    const filename = sanitizeFilename((title||'Discord Log') + '.epub');
+    console.log('Downloading filename:', filename);
+    
+    saveAs(blob, filename);
+    console.log('saveAs called successfully');
+  }
+
+  function dataUrlToBlob(dataUrl){
+    const [meta, b64] = dataUrl.split(',');
+    const mediaType = /data:([^;]+)/.exec(meta)?.[1] || 'application/octet-stream';
+    const ext = mediaType.split('/').pop();
+    const bin = atob(b64);
+    const u8 = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+    return { blob: new Blob([u8], {type:mediaType}), ext, mediaType };
+  }
+
+  function sanitizeFilename(name){
+    return name.replace(/[\\/:*?"<>|]/g,'_');
+  }
+
+  // Transform messages -> chapter HTML
+  function messagesToChapters(messages, {groupMode, imageMode, avatarMode}){
+    
+    // Check if we're dealing with duo chat (multiple channels)
+    const hasMultipleChannels = messages.some(m => m.channelFile !== undefined);
+    
+    if(hasMultipleChannels) {
+      // For duo chats, chronologically interweave and create time-based chapters
+      return createChannelBasedChapters(messages);
+    }
+    
+    // For solo chats, use the original logic (separators or time-based grouping)
+    if(groupMode === 'separators') {
+      return createSeparatorChapters(messages);
+    }
+    
+    // Original time-based grouping logic restored
+    const groupKey = grouper(groupMode);
+    const groups = new Map();
+    for(const m of messages){
+      const key = groupKey(m);
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(m);
+    }
+    // sort groups by key (date-friendly string) and messages by time
+    const ordered = [...groups.entries()].sort((a,b)=> a[0] < b[0] ? -1 : 1);
+
+    const chapters = ordered.map(([key, list])=>{
+      list.sort((a,b)=> new Date(a.timestamp) - new Date(b.timestamp));
+      
+      const rows = list.map(m=>{
+        // Clean HTML content and ensure proper XML escaping
+        let content;
+        if(m.html) {
+          // If we have HTML, clean it and escape XML entities (including Spotify processing)
+          content = cleanHtmlForXml(m.html);
+        } else {
+          // Plain text content (Spotify links already replaced)
+          content = escapeXml(m.content).replace(/\n/g,'<br/>');
+        }
+        
+        let atthtml = '';
+        if(m.attachments?.length){
+          const items = m.attachments.map(a=> a.embedDataURL ?
+            `<figure><img src="${escapeXml(a.embedDataURL)}" alt="${escapeXml(a.filename)}"/></figure>` :
+            `<p><a href="${escapeXml(a.url)}" target="_blank" rel="noreferrer">[Attachment: ${escapeXml(a.filename||a.url)}]</a></p>`
+          ).join('');
+          atthtml = items;
+        }
+        // Use mapped author name if available
+        const authorName = state.authorMappings.get(m.author) || m.author;
+        return `<article><div class="username">${escapeXml(authorName)}</div><div class="content">${content}</div>${atthtml}</article>`;
+      });
+      
+      return {title: key, html: rows.join('\n')};
+    });
+
+    return chapters;
+  }
+
+  // Create chapters based on separator messages
+  function createSeparatorChapters(messages) {
+    const chapters = [];
+    let currentChapter = [];
+    let chapterNumber = 1;
+    
+    for (const msg of messages) {
+      if (isSeparatorMessage(msg)) {
+        // Start a new chapter, but don't include the separator message
+        if (currentChapter.length > 0) {
+          chapters.push({
+            title: `Chapter ${chapterNumber}`,
+            html: formatChapterHTML(currentChapter)
+          });
+          chapterNumber++;
+        }
+        currentChapter = [];
+      } else {
+        // Add message to current chapter
+        currentChapter.push(msg);
+      }
+    }
+    
+    // Don't forget the final chapter
+    if (currentChapter.length > 0) {
+      chapters.push({
+        title: `Chapter ${chapterNumber}`,
+        html: formatChapterHTML(currentChapter)
+      });
+    }
+    
+    // If no separators found, create one chapter with all messages
+    if (chapters.length === 0 && messages.length > 0) {
+      chapters.push({
+        title: 'Chapter 1',
+        html: formatChapterHTML(messages)
+      });
+    }
+    
+    return chapters;
+  }
+
+  // Format chapter HTML from message list
+  function formatChapterHTML(messages) {
+    return messages.map(m=>{
+      // Clean HTML content and ensure proper XML escaping
+      let content;
+      if(m.html) {
+        // If we have HTML, clean it and escape XML entities (including Spotify processing)
+        content = cleanHtmlForXml(m.html);
+      } else {
+        // Plain text content (Spotify links already replaced)
+        content = escapeXml(m.content).replace(/\n/g,'<br/>');
+      }
+      
+      let atthtml = '';
+      if(m.attachments?.length){
+        const items = m.attachments.map(a=> a.embedDataURL ?
+          `<figure><img src="${escapeXml(a.embedDataURL)}" alt="${escapeXml(a.filename)}"/></figure>` :
+          `<p><a href="${escapeXml(a.url)}" target="_blank" rel="noreferrer">[Attachment: ${escapeXml(a.filename||a.url)}]</a></p>`
+        ).join('');
+        atthtml = items;
+      }
+      // Use mapped author name if available
+      const authorName = state.authorMappings.get(m.author) || m.author;
+      return `<article><div class="username">${escapeXml(authorName)}</div><div class="content">${content}</div>${atthtml}</article>`;
+    }).join('\n');
+  }
+
+  // Create chapters based on channels/files for duo chats
+  function createChannelBasedChapters(messages) {
+    // For duo chats: interweave ALL messages chronologically, then use separator-based chaptering
+    // This creates a single coherent story from multiple chat files
+    
+    // First, sort ALL messages chronologically (this interweaves the chats naturally)
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    // Then use separator-based chaptering on the combined, chronological messages
+    return createSeparatorChapters(messages);
+  }
+
+  // Clean HTML content for XML compatibility
+  function cleanHtmlForXml(html) {
+    if (!html) return '';
+    
+    // Decode HTML entities first, then clean for XML (Spotify links already replaced)
+    let cleaned = html
+      .replace(/&nbsp;/g, ' ')  // Convert nbsp to space
+      .replace(/&amp;/g, '&')   // Temporarily decode amp
+      .replace(/&lt;/g, '<')    // Temporarily decode lt
+      .replace(/&gt;/g, '>')    // Temporarily decode gt
+      .replace(/&quot;/g, '"')  // Temporarily decode quot
+      .replace(/&#39;/g, "'")   // Temporarily decode apostrophe
+      .replace(/&rsquo;/g, "'") // Convert typographic apostrophe
+      .replace(/&lsquo;/g, "'") // Convert typographic apostrophe
+      .replace(/&mdash;/g, "—") // Convert em dash
+      .replace(/&ndash;/g, "–") // Convert en dash
+      .replace(/&hellip;/g, "…") // Convert ellipsis
+      .replace(/&copy;/g, "©")  // Convert copyright
+      .replace(/&reg;/g, "®")   // Convert registered
+      .replace(/&trade;/g, "™") // Convert trademark
+      .replace(/<br\s*\/?>/gi, '<br') // Ensure br tags are self-closing for XML
+      .replace(/<img([^>]*?)(?:\s*\/?)>/gi, '<img$1/>') // Ensure img tags are self-closing
+      .replace(/<hr\s*\/?>/gi, '<hr/>') // Ensure hr tags are self-closing
+      .replace(/<source([^>]*?)(?:\s*\/?)>/gi, '<source$1/>') // Ensure source tags are self-closing
+      .replace(/<meta([^>]*?)(?:\s*\/?)>/gi, '<meta$1/>'); // Ensure meta tags are self-closing
+    
+    // Now escape for XML (Spotify links are now simple text, so this is safe)
+    return escapeXml(cleaned);
+  }
+
+  // --- Spotify link processing using JSON embed data ---
+  function resolveSpotifyLinksInMessages(messages){
+    const pattern = /https?:\/\/(?:open\.)?spotify\.(?:com\/)?(?:track|playlist|album|artist)\/[a-zA-Z0-9]+[^\s<>\"]*/g;
+    let totalReplaced = 0;
+    
+    for(const m of messages){
+      let source = (m.html || m.content || '').toString();
+      const urls = source.match(pattern) || [];
+      
+      if(urls.length){
+        // Match Spotify URLs with embed data
+        for(const url of urls){
+          // Find the Spotify embed
+          const embed = m.embeds?.find(e => e.provider?.name === 'Spotify');
+          
+          if(embed && embed.title){
+            // Use the song title from embed
+            const formatted = `🎶${embed.title}🎶`;
+            console.log(`🎵 Spotify: ${formatted}`);
+            source = source.split(url).join(formatted);
+            totalReplaced++;
+          } else {
+            // No embed data? Just use music notes
+            const formatted = `🎶`;
+            console.log(`🎵 Spotify (no embed): ${formatted}`);
+            source = source.split(url).join(formatted);
+            totalReplaced++;
+          }
+        }
+        
+        m.html = source;
+        m.content = source; // Update both
+      }
+    }
+    
+    if(totalReplaced > 0){
+      console.log(`✅ Replaced ${totalReplaced} Spotify links!`);
+    }
+  }
+
+  // Render author management interface
+  function renderAuthors(authors) {
+    const root = qs('#authorList');
+    if(authors.length === 0){ 
+      root.innerHTML = '<div class="muted">No authors found in the export.</div>';
+      return; 
+    }
+    
+    root.innerHTML = '<div class="muted" style="margin-bottom: 8px;">Click on any author name to rename them:</div>';
+    
+    authors.forEach(authorData => {
+      const div = document.createElement('div');
+      div.style.marginBottom = '8px';
+      div.style.display = 'flex';
+      div.style.alignItems = 'center';
+      div.style.gap = '10px';
+      
+      const label = document.createElement('span');
+      const mappedName = state.authorMappings.get(authorData.name) || authorData.name;
+      const isRenamed = state.authorMappings.has(authorData.name);
+      
+      if (isRenamed) {
+        label.innerHTML = `<strong style="color: #8cdcff;">${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span> <span class="muted" style="font-size: 11px;">✏️ renamed</span>`;
+        if (authorData.username && authorData.username !== authorData.name) {
+          label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
+        }
+      } else {
+        label.innerHTML = `<strong>${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span>`;
+        if (authorData.username && authorData.username !== authorData.name) {
+          label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
+        }
+      }
+      
+      label.style.flex = '1';
+      label.style.cursor = 'pointer';
+      label.style.padding = '6px 6px';
+      label.style.borderRadius = '6px';
+      label.style.border = '1px solid var(--line)';
+      label.style.backgroundColor = isRenamed ? 'rgba(140, 220, 255, 0.05)' : 'var(--panel)';
+      
+      // Add reset button for renamed authors
+      const resetButton = document.createElement('button');
+      if (isRenamed) {
+        resetButton.textContent = '×';
+        resetButton.style.display = 'inline';
+      } else {
+        resetButton.style.display = 'none';
+      }
+      resetButton.style.background = 'none';
+      resetButton.style.border = 'none';
+      resetButton.style.color = 'var(--muted)';
+      resetButton.style.fontSize = '16px';
+      resetButton.style.cursor = 'pointer';
+      resetButton.style.padding = '0 6px';
+      resetButton.style.borderRadius = '3px';
+      resetButton.title = 'Reset to original name';
+      
+      resetButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering the label click
+        state.authorMappings.delete(authorData.name);
+        renderAuthors(authors); // Refresh the entire author list
+        renderPreview(state.messages);
+      });
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = authorData.name;
+      input.style.width = '200px';
+      input.style.padding = '4px 8px';
+      input.style.borderRadius = '6px';
+      input.style.border = '1px solid var(--line)';
+      input.style.background = '#0b0e12';
+      input.style.color = 'var(--text)';
+      input.style.display = 'none';
+      
+      input.addEventListener('blur', () => {
+        const newName = input.value.trim();
+        if(newName && newName !== authorData.name) {
+          state.authorMappings.set(authorData.name, newName);
+          // Update the label to show the new name immediately with styling
+          const mappedName = state.authorMappings.get(authorData.name) || authorData.name;
+          const isRenamed = state.authorMappings.has(authorData.name);
+          
+          if (isRenamed) {
+            label.innerHTML = `<strong style="color: #8cdcff;">${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span> <span class="muted" style="font-size: 11px;">✏️ renamed</span>`;
+            if (authorData.username && authorData.username !== authorData.name) {
+              label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
+            }
+          } else {
+            label.innerHTML = `<strong>${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span>`;
+            if (authorData.username && authorData.username !== authorData.name) {
+              label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
+            }
+          }
+          label.style.backgroundColor = isRenamed ? 'rgba(140, 220, 255, 0.05)' : 'var(--panel)';
+          resetButton.style.display = isRenamed ? 'inline' : 'none';
+          renderPreview(state.messages); // Refresh preview to show renamed authors
+        }
+        input.style.display = 'none';
+        label.style.display = 'block';
+      });
+      
+      input.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') {
+          input.blur();
+        } else if(e.key === 'Escape') {
+          input.value = authorData.name;
+          input.blur();
+        }
+      });
+      
+      div.appendChild(label);
+      div.appendChild(resetButton);
+      div.appendChild(input);
+      
+      label.addEventListener('click', () => {
+        label.style.display = 'none';
+        input.style.display = 'block';
+        input.focus();
+        input.select();
+      });
+      
+      root.appendChild(div);
+    });
+  }
+
+  // Extract unique authors from messages with additional metadata
+  function getUniqueAuthors(messages) {
+    const authorMap = new Map();
+    messages.forEach(m => {
+      if (!authorMap.has(m.author)) {
+        authorMap.set(m.author, {
+          name: m.author,
+          username: m.originalUsername || m.author,
+          messageCount: 0
+        });
+      }
+      authorMap.get(m.author).messageCount++;
+    });
+    return [...authorMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // --- Wire up UI ---
+  const state = { 
+    messages: [], 
+    mediaMap: new Map(), 
+    avatars: new Map(), 
+    authorMappings: new Map(),
+    chatType: 'solo', // 'solo' or 'duo'
+    selectedFiles: []
+  };
+
+  // Toggle functionality
+  function setupToggleHandlers() {
+    const soloBtn = qs('#soloBtn');
+    const duoBtn = qs('#duoBtn');
+    const exportFile = qs('#exportFile');
+    const multiFileContainer = qs('#multiFileContainer');
+    const dropZone = qs('#dropZone');
+    
+    soloBtn.addEventListener('click', () => {
+      state.chatType = 'solo';
+      soloBtn.classList.add('active');
+      duoBtn.classList.remove('active');
+      
+      // Remove multiple attribute for solo chats
+      exportFile.removeAttribute('multiple');
+      multiFileContainer.style.display = 'none';
+      
+      // Update drop zone text
+      const titleEl = dropZone.querySelector('.dz-title');
+      const subEl = dropZone.querySelector('.dz-sub');
+      if (titleEl) titleEl.textContent = 'Drop your Discord export';
+      if (subEl) subEl.textContent = 'ZIP file with chat + media';
+      
+      // Clear selected files
+      state.selectedFiles = [];
+      updateFileList();
+    });
+    
+    duoBtn.addEventListener('click', () => {
+      state.chatType = 'duo';
+      soloBtn.classList.remove('active');
+      duoBtn.classList.add('active');
+      
+      // Add multiple attribute for duo chats
+      exportFile.setAttribute('multiple', 'true');
+      multiFileContainer.style.display = 'block';
+      
+      // Update drop zone text
+      const titleEl = dropZone.querySelector('.dz-title');
+      const subEl = dropZone.querySelector('.dz-sub');
+      if (titleEl) titleEl.textContent = 'Drop Discord exports';
+      if (subEl) subEl.textContent = 'ZIP files with chats + media';
+    });
+  }
+
+  // File list management for duo chat
+  function updateFileList() {
+    const fileList = qs('#fileList');
+    
+    if (state.selectedFiles.length === 0) {
+      fileList.innerHTML = '<div class="muted">No files selected</div>';
+      return;
+    }
+    
+    fileList.innerHTML = '';
+    state.selectedFiles.forEach((file, index) => {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML = `
+        <i data-lucide="file-archive" style="width:16px;height:16px;"></i>
+        <span>${escapeHtml(file.name)}</span>
+        <button class="remove-btn" data-index="${index}">×</button>
+      `;
+      
+      // Remove button handler
+      item.querySelector('.remove-btn').addEventListener('click', () => {
+        state.selectedFiles.splice(index, 1);
+        updateFileList();
+        updateFileInput();
+      });
+      
+      fileList.appendChild(item);
+    });
+    
+    // Re-initialize Lucide icons
+    lucide.createIcons();
+  }
+
+  function updateFileInput() {
+    const fileInput = qs('#exportFile');
+    const dataTransfer = new DataTransfer();
+    
+    state.selectedFiles.forEach(file => {
+      dataTransfer.items.add(file);
+    });
+    
+    fileInput.files = dataTransfer.files;
+  }
+
+  qs('#parseBtn').addEventListener('click', async () =>{
+    try{
+      if(state.selectedFiles.length === 0) return alert('Please choose Discord export ZIP file(s).');
+      
+      qs('#status').textContent = 'Parsing…';
+      
+      let allMessages = [];
+      let allMediaMap = new Map();
+      const chatFiles = [];
+      
+      // Process all selected files
+      for(let i = 0; i < state.selectedFiles.length; i++) {
+        const file = state.selectedFiles[i];
+        qs('#status').textContent = `Processing file ${i + 1} of ${state.selectedFiles.length}...`;
+        
+        const { chatFile: extractedChatFile, mediaMap: zipMediaMap } = await processZipFile(file);
+        
+        // Parse the chat file
+        const messages = await parseDiscordExport(extractedChatFile);
+        
+        // Add chapter/channel information if we have multiple files
+        const baseName = file.name.replace(/\.[^.]+$/, '');
+        const modifiedMessages = messages.map(msg => ({
+          ...msg,
+          channelFile: baseName,
+          channelIndex: i
+        }));
+        
+        allMessages.push(...modifiedMessages);
+        
+        // Merge media maps
+        for(const [key, value] of zipMediaMap) {
+          allMediaMap.set(key, value);
+        }
+        
+        chatFiles.push(extractedChatFile);
+      }
+      
+      messages = allMessages;
+      state.mediaMap = allMediaMap;
+
+      // Normalize timestamps
+      messages = messages.map(m=>({
+        ...m,
+        timestamp: m.timestamp ? new Date(m.timestamp).toISOString() : new Date().toISOString()
+      }));
+
+      // Resolve Spotify links to display text (Artist - Song) from JSON embeds
+      resolveSpotifyLinksInMessages(messages);
+
+      // Always embed images if media files available
+      if(state.mediaMap.size){
+        console.log(`Processing images from ${state.mediaMap.size} media files...`);
+        console.log('Available media files:', Array.from(state.mediaMap.keys()));
+        
+        // Process attachments in parallel
+        const attachmentPromises = [];
+        for(let msgIndex = 0; msgIndex < messages.length; msgIndex++){
+          const m = messages[msgIndex];
+          if(m.attachments && m.attachments.length > 0){
+            for(const a of m.attachments){
+              attachmentPromises.push((async () => {
+                const fileName = (a.filename || '').toLowerCase();
+                let mediaBlob = state.mediaMap.get(fileName);
+                
+                // If exact match failed, try fuzzy matching
+                if(!mediaBlob) {
+                  console.log(`No exact match for "${fileName}"`);
+                  
+                  // Try matching by base filename (without extension)
+                  const baseFileName = fileName.replace(/\.[^.]+$/, '');
+                  
+                  // Search through all media files for a match
+                  for(const [mediaFileName, mediaFile] of state.mediaMap) {
+                    const mediaLower = mediaFileName.toLowerCase();
+                    
+                    // Try various matching strategies:
+                    // 1. Contains the base filename
+                    if(mediaLower.includes(baseFileName)) {
+                      console.log(`✅ Matched by base name: ${mediaFileName} for ${fileName}`);
+                      mediaBlob = mediaFile;
+                      break;
+                    }
+                    
+                    // 2. Filename contains significant parts (excluding common prefixes like numbers)
+                    const significantPart = baseFileName.replace(/^\d+_/, '').substring(0, 15);
+                    if(significantPart.length > 5 && mediaLower.includes(significantPart)) {
+                      console.log(`✅ Matched by significant part: ${mediaFileName} for ${fileName}`);
+                      mediaBlob = mediaFile;
+                      break;
+                    }
+                  }
+                  
+                  // If still no match and it's an image extension, try any unmatched image
+                  if(!mediaBlob && fileName.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
+                    console.log(`Trying fallback for image: ${fileName}`);
+                    const imageFiles = Array.from(state.mediaMap.entries()).filter(([name]) => 
+                      name.match(/\.(png|jpg|jpeg|gif|webp)$/i) && 
+                      !name.includes('avatar')
+                    );
+                    
+                    if(imageFiles.length > 0) {
+                      mediaBlob = imageFiles[0][1];
+                      console.log(`Using fallback image: ${imageFiles[0][0]}`);
+                    }
+                  }
+                }
+                
+                if(mediaBlob) {
+                  // Convert Blob or File to data URL
+                  try {
+                    if(mediaBlob instanceof Blob || mediaBlob instanceof File) {
+                      console.log(`✅ Embedding image: ${a.filename}`);
+                      a.embedDataURL = await blobToDataURL(mediaBlob);
+                    }
+                  } catch(error) {
+                    console.error(`Error embedding image ${a.filename}:`, error);
+                  }
+                } else {
+                  console.log(`❌ No media file found for: ${fileName}`);
+                }
+              })());
+            }
+          }
+        }
+        
+        // Wait for all image processing to complete
+        await Promise.all(attachmentPromises);
+      }
+
+
+      state.messages = messages.sort((a,b)=> new Date(a.timestamp) - new Date(b.timestamp));
+      
+      // Auto-detect date range and gather stats
+      if(state.messages.length > 0) {
+        const dates = state.messages.map(m => new Date(m.timestamp));
+        const earliest = new Date(Math.min(...dates));
+        const latest = new Date(Math.max(...dates));
+        const dateRange = `${earliest.toLocaleDateString()} to ${latest.toLocaleDateString()}`;
+        
+        // Count unique authors
+        const uniqueAuthors = new Set(state.messages.map(m => m.author)).size;
+        const authorsList = [...new Set(state.messages.map(m => m.author))].slice(0, 3).join(', ');
+        const authorsDisplay = uniqueAuthors > 3 ? `${authorsList} +${uniqueAuthors - 3} more` : authorsList;
+        
+        // Render authors for management
+        const authors = getUniqueAuthors(state.messages);
+        renderAuthors(authors);
+        
+        const fileCount = state.selectedFiles.length;
+        const modeText = state.chatType === 'duo' ? `${fileCount} files interweaved chronologically` : 'single conversation';
+        
+        qs('#status').innerHTML = `<strong>Parsed ${state.messages.length} messages</strong><br><span class="muted">📅 ${dateRange}</span><br><span class="muted">👥 ${uniqueAuthors} authors: ${authorsDisplay}</span><br><span class="muted">📂 ${modeText}</span>`;
+      } else {
+        qs('#status').textContent = `Parsed ${state.messages.length} messages.`;
+      }
+      
+      renderPreview(state.messages);
+      qs('#epubBtn').disabled = state.messages.length===0;
+
+      // Auto-fill title if empty
+      const bt = qs('#bookTitle');
+      if(!bt.value){ 
+        if(state.chatType === 'solo' && chatFiles.length > 0) {
+          const baseName = chatFiles[0].name.replace(/\.[^.]+$/, '');
+          bt.value = `${baseName} (Discord Log)`; 
+        } else if(state.chatType === 'duo' && state.selectedFiles.length > 0) {
+          // For duo chats, create a combined title
+          const baseNames = state.selectedFiles.slice(0, 2).map(f => f.name.replace(/\.[^.]+$/, ''));
+          if(baseNames.length === 1) {
+            bt.value = `${baseNames[0]} Conversation`;
+          } else {
+            bt.value = `${baseNames.join(' & ')} Conversation`;
+          }
+        }
+      }
+    } catch(err){
+      console.error(err);
+      qs('#status').textContent = 'Error: ' + err.message;
+      alert(err.message);
+    }
+  });
+
+  qs('#epubBtn').addEventListener('click', async ()=>{
+    if(!state.messages.length) return;
+    
+    try {
+      qs('#status').textContent = 'Generating EPUB...';
+      console.log('Starting EPUB generation...');
+      
+      const opts = {
+        title: qs('#bookTitle').value || 'Discord Log',
+        groupMode: 'separators', // Use separators for solo chats, chronological for duo chats
+        imageMode: 'embed', // Always embed images
+        avatarMode: 'none'
+      };
+
+      console.log('Message count:', state.messages.length);
+      console.log('Options:', opts);
+      
+      const chapters = messagesToChapters(state.messages, opts);
+      console.log('Chapters generated:', chapters.length);
+      
+      await buildEpub({ title: opts.title, chapters });
+      console.log('EPUB generation completed');
+      qs('#status').textContent = `✅ EPUB downloaded: ${opts.title}.epub`;
+      
+    } catch (error) {
+      console.error('EPUB generation failed:', error);
+      qs('#status').textContent = `❌ Error: ${error.message}`;
+      alert(`EPUB generation failed: ${error.message}`);
+    }
+  });
+
+  // Initialize drag and drop on page load
+  setupDragAndDrop();
+  
+  // Initialize toggle handlers
+  setupToggleHandlers();
+  
+  // Initialize Lucide icons
+  lucide.createIcons();
+  </script>
+</body>
+</html>
