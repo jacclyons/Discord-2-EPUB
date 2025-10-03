@@ -559,7 +559,7 @@
       }
       
       // Use mapped author name if available
-      const authorName = state.authorMappings.get(m.author) || m.author;
+      const authorName = getMappedAuthorName(m);
       div.innerHTML = `<div class="username">${escapeHtml(authorName)}</div>` +
                       `<div class="content">${content}</div>` + atthtml;
       root.appendChild(div);
@@ -753,7 +753,7 @@
           atthtml = items;
         }
         // Use mapped author name if available
-        const authorName = state.authorMappings.get(m.author) || m.author;
+        const authorName = getMappedAuthorName(m);
         return `<article><div class="username">${escapeXml(authorName)}</div><div class="content">${content}</div>${atthtml}</article>`;
       });
       
@@ -827,7 +827,7 @@
         atthtml = items;
       }
       // Use mapped author name if available
-      const authorName = state.authorMappings.get(m.author) || m.author;
+      const authorName = getMappedAuthorName(m);
       return `<article><div class="username">${escapeXml(authorName)}</div><div class="content">${content}</div>${atthtml}</article>`;
     }).join('\n');
   }
@@ -915,129 +915,157 @@
   }
 
   // Render author management interface
-  function renderAuthors(authors) {
+  function renderAuthors(authorsOrFileGroups) {
     const root = qs('#authorList');
-    if(authors.length === 0){ 
+    
+    // Check if duo mode with file-grouped authors
+    const isDuoMode = state.chatType === 'duo' && Array.isArray(authorsOrFileGroups) && authorsOrFileGroups[0]?.fileName;
+    
+    if (!isDuoMode && authorsOrFileGroups.length === 0) { 
       root.innerHTML = '<div class="muted">No authors found in the export.</div>';
       return; 
     }
     
     root.innerHTML = '<div class="muted" style="margin-bottom: 8px;">Click on any author name to rename them:</div>';
     
-    authors.forEach(authorData => {
-      const div = document.createElement('div');
-      div.style.marginBottom = '8px';
-      div.style.display = 'flex';
-      div.style.alignItems = 'center';
-      div.style.gap = '10px';
-      
-      const label = document.createElement('span');
-      const mappedName = state.authorMappings.get(authorData.name) || authorData.name;
-      const isRenamed = state.authorMappings.has(authorData.name);
-      
-      if (isRenamed) {
-        label.innerHTML = `<strong style="color: #8cdcff;">${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span> <span class="muted" style="font-size: 11px;">✏️ renamed</span>`;
-        if (authorData.username && authorData.username !== authorData.name) {
-          label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
+    if (isDuoMode) {
+      // Duo mode: render authors grouped by file
+      authorsOrFileGroups.forEach(fileGroup => {
+        // File header
+        const fileHeader = document.createElement('div');
+        fileHeader.style.marginTop = '12px';
+        fileHeader.style.marginBottom = '6px';
+        fileHeader.style.padding = '6px 8px';
+        fileHeader.style.backgroundColor = 'var(--bg)';
+        fileHeader.style.borderRadius = '4px';
+        fileHeader.style.border = '1px solid var(--border)';
+        fileHeader.innerHTML = `<i data-lucide="file-archive" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px;"></i><strong style="font-size:12px;">${escapeHtml(fileGroup.fileName)}</strong>`;
+        root.appendChild(fileHeader);
+        
+        // Ensure file has a mapping map
+        if (!state.fileAuthorMappings.has(fileGroup.fileName)) {
+          state.fileAuthorMappings.set(fileGroup.fileName, new Map());
         }
-      } else {
-        label.innerHTML = `<strong>${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span>`;
-        if (authorData.username && authorData.username !== authorData.name) {
-          label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
-        }
+        const fileMappings = state.fileAuthorMappings.get(fileGroup.fileName);
+        
+        // Render authors for this file
+        fileGroup.authors.forEach(authorData => {
+          renderAuthorRow(root, authorData, fileMappings, () => {
+            renderAuthors(authorsOrFileGroups);
+          });
+        });
+        
+        // Re-initialize icons for this section
+        lucide.createIcons();
+      });
+    } else {
+      // Solo mode: render all authors in one list
+      authorsOrFileGroups.forEach(authorData => {
+        renderAuthorRow(root, authorData, state.authorMappings, () => {
+          renderAuthors(authorsOrFileGroups);
+        });
+      });
+    }
+  }
+  
+  // Helper function to render a single author row
+  function renderAuthorRow(root, authorData, mappingMap, refreshCallback) {
+    const div = document.createElement('div');
+    div.style.marginBottom = '8px';
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.gap = '10px';
+    
+    const label = document.createElement('span');
+    const mappedName = mappingMap.get(authorData.name) || authorData.name;
+    const isRenamed = mappingMap.has(authorData.name);
+    
+    if (isRenamed) {
+      label.innerHTML = `<strong style="color: #8cdcff;">${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span> <span class="muted" style="font-size: 11px;">✏️</span>`;
+      if (authorData.username && authorData.username !== authorData.name) {
+        label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
       }
-      
-      label.style.flex = '1';
-      label.style.cursor = 'pointer';
-      label.style.padding = '6px 6px';
-      label.style.borderRadius = '6px';
-      label.style.border = '1px solid var(--line)';
-      label.style.backgroundColor = isRenamed ? 'rgba(140, 220, 255, 0.05)' : 'var(--panel)';
-      
-      // Add reset button for renamed authors
-      const resetButton = document.createElement('button');
-      if (isRenamed) {
-        resetButton.textContent = '×';
-        resetButton.style.display = 'inline';
-      } else {
-        resetButton.style.display = 'none';
+    } else {
+      label.innerHTML = `<strong>${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span>`;
+      if (authorData.username && authorData.username !== authorData.name) {
+        label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
       }
-      resetButton.style.background = 'none';
-      resetButton.style.border = 'none';
-      resetButton.style.color = 'var(--muted)';
-      resetButton.style.fontSize = '16px';
-      resetButton.style.cursor = 'pointer';
-      resetButton.style.padding = '0 6px';
-      resetButton.style.borderRadius = '3px';
-      resetButton.title = 'Reset to original name';
-      
-      resetButton.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent triggering the label click
-        state.authorMappings.delete(authorData.name);
-        renderAuthors(authors); // Refresh the entire author list
-        renderPreview(state.messages);
-      });
-      
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = authorData.name;
-      input.style.width = '200px';
-      input.style.padding = '4px 8px';
-      input.style.borderRadius = '6px';
-      input.style.border = '1px solid var(--line)';
-      input.style.background = '#0b0e12';
-      input.style.color = 'var(--text)';
-      input.style.display = 'none';
-      
-      input.addEventListener('blur', () => {
-        const newName = input.value.trim();
-        if(newName && newName !== authorData.name) {
-          state.authorMappings.set(authorData.name, newName);
-          // Update the label to show the new name immediately with styling
-          const mappedName = state.authorMappings.get(authorData.name) || authorData.name;
-          const isRenamed = state.authorMappings.has(authorData.name);
-          
-          if (isRenamed) {
-            label.innerHTML = `<strong style="color: #8cdcff;">${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span> <span class="muted" style="font-size: 11px;">✏️ renamed</span>`;
-            if (authorData.username && authorData.username !== authorData.name) {
-              label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
-            }
-          } else {
-            label.innerHTML = `<strong>${mappedName}</strong> <span class="muted">(${authorData.messageCount} messages)</span>`;
-            if (authorData.username && authorData.username !== authorData.name) {
-              label.innerHTML += ` <span class="muted">• @${authorData.username}</span>`;
-            }
-          }
-          label.style.backgroundColor = isRenamed ? 'rgba(140, 220, 255, 0.05)' : 'var(--panel)';
-          resetButton.style.display = isRenamed ? 'inline' : 'none';
-          renderPreview(state.messages); // Refresh preview to show renamed authors
-        }
-        input.style.display = 'none';
-        label.style.display = 'block';
-      });
-      
-      input.addEventListener('keydown', (e) => {
-        if(e.key === 'Enter') {
-          input.blur();
-        } else if(e.key === 'Escape') {
-          input.value = authorData.name;
-          input.blur();
-        }
-      });
-      
-      div.appendChild(label);
-      div.appendChild(resetButton);
-      div.appendChild(input);
-      
-      label.addEventListener('click', () => {
-        label.style.display = 'none';
-        input.style.display = 'block';
-        input.focus();
-        input.select();
-      });
-      
-      root.appendChild(div);
+    }
+    
+    label.style.flex = '1';
+    label.style.cursor = 'pointer';
+    label.style.padding = '6px 6px';
+    label.style.borderRadius = '6px';
+    label.style.border = '1px solid var(--line)';
+    label.style.backgroundColor = isRenamed ? 'rgba(140, 220, 255, 0.05)' : 'var(--panel)';
+    
+    // Add reset button for renamed authors
+    const resetButton = document.createElement('button');
+    if (isRenamed) {
+      resetButton.textContent = '×';
+      resetButton.style.display = 'inline';
+    } else {
+      resetButton.style.display = 'none';
+    }
+    resetButton.style.background = 'none';
+    resetButton.style.border = 'none';
+    resetButton.style.color = 'var(--muted)';
+    resetButton.style.fontSize = '16px';
+    resetButton.style.cursor = 'pointer';
+    resetButton.style.padding = '0 6px';
+    resetButton.style.borderRadius = '3px';
+    resetButton.title = 'Reset to original name';
+    
+    resetButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mappingMap.delete(authorData.name);
+      refreshCallback();
+      renderPreview(state.messages);
     });
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = authorData.name;
+    input.style.width = '200px';
+    input.style.padding = '4px 8px';
+    input.style.borderRadius = '6px';
+    input.style.border = '1px solid var(--line)';
+    input.style.background = '#0b0e12';
+    input.style.color = 'var(--text)';
+    input.style.display = 'none';
+    
+    input.addEventListener('blur', () => {
+      const newName = input.value.trim();
+      if(newName && newName !== authorData.name) {
+        mappingMap.set(authorData.name, newName);
+        refreshCallback();
+        renderPreview(state.messages);
+      }
+      input.style.display = 'none';
+      label.style.display = 'block';
+    });
+    
+    input.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter') {
+        input.blur();
+      } else if(e.key === 'Escape') {
+        input.value = authorData.name;
+        input.blur();
+      }
+    });
+    
+    div.appendChild(label);
+    div.appendChild(resetButton);
+    div.appendChild(input);
+    
+    label.addEventListener('click', () => {
+      label.style.display = 'none';
+      input.style.display = 'block';
+      input.focus();
+      input.select();
+    });
+    
+    root.appendChild(div);
   }
 
   // Extract unique authors from messages with additional metadata
@@ -1056,12 +1084,61 @@
     return [...authorMap.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  // Extract unique authors per file for duo mode
+  function getAuthorsByFile(messages) {
+    const fileMap = new Map();
+    messages.forEach(m => {
+      const fileName = m.channelFile || 'default';
+      if (!fileMap.has(fileName)) {
+        fileMap.set(fileName, new Map());
+      }
+      const authorMap = fileMap.get(fileName);
+      if (!authorMap.has(m.author)) {
+        authorMap.set(m.author, {
+          name: m.author,
+          username: m.originalUsername || m.author,
+          messageCount: 0,
+          fileName: fileName
+        });
+      }
+      authorMap.get(m.author).messageCount++;
+    });
+    
+    // Convert to array structure
+    const result = [];
+    fileMap.forEach((authors, fileName) => {
+      result.push({
+        fileName: fileName,
+        authors: [...authors.values()].sort((a, b) => a.name.localeCompare(b.name))
+      });
+    });
+    return result.sort((a, b) => a.fileName.localeCompare(b.fileName));
+  }
+
+  // Helper to get mapped author name based on mode
+  function getMappedAuthorName(message) {
+    if (state.chatType === 'duo' && message.channelFile) {
+      // Duo mode: check file-specific mappings
+      const fileMappings = state.fileAuthorMappings.get(message.channelFile);
+      if (fileMappings && fileMappings.has(message.author)) {
+        return fileMappings.get(message.author);
+      }
+    } else {
+      // Solo mode: check global mappings
+      if (state.authorMappings.has(message.author)) {
+        return state.authorMappings.get(message.author);
+      }
+    }
+    return message.author; // Return original if no mapping
+  }
+
   // --- Wire up UI ---
   const state = { 
     messages: [], 
     mediaMap: new Map(), 
     avatars: new Map(), 
-    authorMappings: new Map(),
+    authorMappings: new Map(), // For solo mode: Map<authorName, newName>
+    fileAuthorMappings: new Map(), // For duo mode: Map<fileName, Map<authorName, newName>>
     chatType: 'solo', // 'solo' or 'duo'
     selectedFiles: []
   };
@@ -1301,8 +1378,13 @@
         const authorsDisplay = uniqueAuthors > 3 ? `${authorsList} +${uniqueAuthors - 3} more` : authorsList;
         
         // Render authors for management
-        const authors = getUniqueAuthors(state.messages);
-        renderAuthors(authors);
+        if (state.chatType === 'duo' && state.selectedFiles.length > 1) {
+          const authorsByFile = getAuthorsByFile(state.messages);
+          renderAuthors(authorsByFile);
+        } else {
+          const authors = getUniqueAuthors(state.messages);
+          renderAuthors(authors);
+        }
         
         const fileCount = state.selectedFiles.length;
         const modeText = state.chatType === 'duo' ? `${fileCount} files interweaved chronologically` : 'single conversation';
